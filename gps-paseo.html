@@ -3,472 +3,175 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Waffle's Garden — Active Walk</title>
+  <title>Waffle's Garden - Active Walk</title>
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <style>
-    /* ── Sky & Sunset Palette ── */
     :root {
-      --primary:       #3A7FD4;
-      --primary-deep:  #2A5FA4;
-      --accent:        #E8651A;
-      --gold:          #F5C842;
-
-      /* Light mode */
-      --bg:            #FFFFFF;
-      --panel:         rgba(255, 255, 255, 0.97);
-      --card:          #EEF4FD;
-      --card-border:   #C4D8F4;
-      --text:          #0A1A3A;
-      --subtext:       #4A6A9A;
-      --shadow:        rgba(10, 26, 58, 0.13);
-      --success:       #2E9460;
-      --danger:        #E8651A;
-      --toggle-track:  #B8CCEA;
+      --primary: #3A7FD4; --primary-deep: #2A5FA4; --accent: #E8651A; --gold: #F5C842;
+      --bg: #FFFFFF; --panel: rgba(255,255,255,0.97); --card: #EEF4FD;
+      --card-border: #C4D8F4; --text: #0A1A3A; --subtext: #4A6A9A;
+      --shadow: rgba(10,26,58,0.13); --success: #2E9460; --danger: #E8651A;
+      --toggle-track: #B8CCEA;
     }
-
     @media (prefers-color-scheme: dark) {
-      :root {
-        --bg:           #060E20;
-        --panel:        rgba(8, 18, 42, 0.97);
-        --card:         #0D1E3A;
-        --card-border:  #1A3464;
-        --text:         #EEF4FD;
-        --subtext:      #7A9AC8;
-        --shadow:       rgba(0, 0, 0, 0.5);
-        --toggle-track: #1A3464;
-      }
+      :root { --bg:#060E20; --panel:rgba(8,18,42,0.97); --card:#0D1E3A;
+        --card-border:#1A3464; --text:#EEF4FD; --subtext:#7A9AC8;
+        --shadow:rgba(0,0,0,0.5); --toggle-track:#1A3464; }
     }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html,body { width:100%; height:100%; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      background:var(--bg); color:var(--text); overflow:hidden; }
+    #map { position:fixed; inset:0; z-index:0; background:#d4e8f8; }
+    .topbar { position:fixed; top:0; left:0; right:0; z-index:100; display:flex;
+      align-items:center; justify-content:space-between; padding:12px 16px 10px;
+      background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+      border-bottom:1px solid var(--card-border); box-shadow:0 2px 14px var(--shadow); }
+    .dog-profile { display:flex; align-items:center; gap:10px; cursor:pointer;
+      -webkit-tap-highlight-color:transparent; }
+    .dog-photo { width:46px; height:46px; border-radius:50%; object-fit:cover;
+      border:2.5px solid var(--primary); background:var(--card);
+      transition:transform .2s,box-shadow .2s; flex-shrink:0; }
+    .dog-profile:hover .dog-photo { transform:scale(1.08); box-shadow:0 0 0 4px rgba(58,127,212,.22); }
+    .dog-meta { display:flex; flex-direction:column; gap:2px; }
+    .dog-name { font-size:16px; font-weight:800; color:var(--text); line-height:1; }
+    .dog-breed { font-size:11px; color:var(--subtext); font-weight:500; }
+    .dog-badge { display:inline-block; background:var(--primary); color:#fff; font-size:9px;
+      font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:2px 7px;
+      border-radius:50px; margin-top:2px; }
+    .hint-label { font-size:9px; color:var(--primary); opacity:.65; margin-top:1px; }
+    .detail-popup { position:fixed; z-index:500; background:var(--panel);
+      backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+      border:1px solid var(--card-border); border-radius:18px; padding:14px 16px 12px;
+      box-shadow:0 12px 40px var(--shadow); width:252px; opacity:0; pointer-events:none;
+      transform:translateY(-5px) scale(.97); transition:opacity .2s,transform .2s; }
+    .detail-popup.visible { opacity:1; pointer-events:auto; transform:translateY(0) scale(1); }
+    .detail-header { display:flex; align-items:center; gap:10px; margin-bottom:11px;
+      padding-bottom:10px; border-bottom:1px solid var(--card-border); }
+    .detail-photo { width:56px; height:56px; border-radius:12px; object-fit:cover;
+      border:2px solid var(--primary); background:var(--card); flex-shrink:0; }
+    .detail-title { font-size:15px; font-weight:800; color:var(--text); line-height:1.2; }
+    .detail-sub { font-size:10px; color:var(--subtext); margin-top:2px; }
+    .detail-row { display:flex; justify-content:space-between; align-items:center;
+      padding:5px 0; border-top:1px solid var(--card-border); }
+    .detail-key { font-size:10px; color:var(--subtext); font-weight:700;
+      text-transform:uppercase; letter-spacing:.06em; }
+    .detail-val { font-size:12px; color:var(--text); font-weight:600; }
+    .detail-val.id-code { color:var(--primary); font-family:'Courier New',monospace;
+      font-size:11px; letter-spacing:.04em; }
+    .toggle-wrap { display:flex; flex-direction:column; align-items:center; gap:4px; }
+    .toggle-label { font-size:10px; font-weight:700; text-transform:uppercase;
+      letter-spacing:.07em; color:var(--subtext); }
+    .toggle-switch { position:relative; width:64px; height:32px; cursor:pointer; }
+    .toggle-switch input { opacity:0; width:0; height:0; position:absolute; }
+    .toggle-track { position:absolute; inset:0; background:var(--toggle-track);
+      border-radius:50px; transition:background .3s; }
+    .toggle-switch input:checked + .toggle-track { background:var(--danger);
+      animation:pulse-track 2s infinite; }
+    .toggle-thumb { position:absolute; top:3px; left:3px; width:26px; height:26px;
+      background:#fff; border-radius:50%; transition:transform .3s cubic-bezier(.4,0,.2,1);
+      box-shadow:0 2px 6px rgba(0,0,0,.2); display:flex; align-items:center;
+      justify-content:center; font-size:13px; }
+    .toggle-switch input:checked + .toggle-track + .toggle-thumb { transform:translateX(32px); }
+    @keyframes pulse-track { 0%,100%{box-shadow:0 0 0 0 rgba(232,101,26,.4);}
+      50%{box-shadow:0 0 0 5px rgba(232,101,26,0);} }
+    .bottom-panel { position:fixed; bottom:0; left:0; right:0; z-index:100;
+      background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+      border-top:1px solid var(--card-border); border-radius:22px 22px 0 0;
+      padding:10px 16px 30px; box-shadow:0 -4px 20px var(--shadow); }
+    .handle { width:38px; height:4px; background:var(--card-border); border-radius:2px;
+      margin:0 auto 12px; }
+    .stats-row { display:flex; gap:8px; margin-bottom:12px; }
+    .stat { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;
+      background:var(--card); border:1px solid var(--card-border); border-radius:14px;
+      padding:10px 6px; }
+    .stat-val { font-size:19px; font-weight:800; color:var(--primary); line-height:1; }
+    .stat-lbl { font-size:9px; color:var(--subtext); text-transform:uppercase;
+      letter-spacing:.07em; font-weight:600; }
+    .walker-card { display:flex; align-items:center; gap:12px; background:var(--card);
+      border:1px solid var(--card-border); border-radius:16px; padding:10px 12px;
+      margin-bottom:10px; cursor:pointer; transition:background .2s;
+      -webkit-tap-highlight-color:transparent; }
+    .walker-card:hover { background:var(--card-border); }
+    .walker-photo { width:48px; height:48px; border-radius:50%; object-fit:cover;
+      border:2.5px solid var(--primary); flex-shrink:0; background:var(--card-border); }
+    .walker-info { flex:1; min-width:0; }
+    .walker-name { font-size:15px; font-weight:700; color:var(--text); line-height:1.2; }
+    .walker-role { font-size:10px; color:var(--subtext); }
+    .walker-stars { font-size:11px; color:var(--gold); letter-spacing:1px; }
+    .call-btn { display:flex; align-items:center; justify-content:center;
+      width:44px; height:44px; border-radius:50%; background:var(--success); border:none;
+      cursor:pointer; text-decoration:none; font-size:20px;
+      box-shadow:0 3px 10px rgba(46,148,96,.4); flex-shrink:0; transition:transform .15s; }
+    .call-btn:active { transform:scale(.92); }
+    .status-bar { display:flex; align-items:center; justify-content:center; gap:7px;
+      padding:9px 14px; background:var(--card); border:1px solid var(--card-border);
+      border-radius:50px; }
+    .status-dot { width:8px; height:8px; border-radius:50%; background:var(--card-border);
+      flex-shrink:0; transition:background .3s; }
+    .status-dot.active { background:var(--success); animation:blink 1.2s infinite; }
+    @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+    .status-text { font-size:12px; font-weight:600; color:var(--subtext); }
+    .recenter-btn { position:fixed; bottom:190px; right:16px; z-index:150;
+      width:44px; height:44px; border-radius:50%; background:var(--panel);
+      border:1px solid var(--card-border); box-shadow:0 2px 12px var(--shadow);
+      display:flex; align-items:center; justify-content:center; font-size:20px;
+      cursor:pointer; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
+    .gps-dot { width:18px; height:18px; background:#3A7FD4; border-radius:50%;
+      border:3px solid #fff; box-shadow:0 0 0 4px rgba(58,127,212,.35); }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      width: 100%; height: 100%;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      overflow: hidden;
-    }
-
-    /* ── MAP ── */
-    #map {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      background: #d4e8f8;
-    }
-
-    /* ── TOP BAR ── */
-    .topbar {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 16px 10px;
-      background: var(--panel);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      border-bottom: 1px solid var(--card-border);
-      box-shadow: 0 2px 14px var(--shadow);
-    }
-
-    /* Dog profile */
-    .dog-profile {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .dog-photo {
-      width: 46px; height: 46px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 2.5px solid var(--primary);
-      background: var(--card);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-      flex-shrink: 0;
-    }
-
-    .dog-profile:hover .dog-photo {
-      transform: scale(1.08);
-      box-shadow: 0 0 0 4px rgba(58,127,212,0.22);
-    }
-
-    .dog-meta { display: flex; flex-direction: column; gap: 2px; }
-
-    .dog-name {
-      font-size: 16px;
-      font-weight: 800;
-      color: var(--text);
-      line-height: 1;
-    }
-
-    .dog-breed {
-      font-size: 11px;
-      color: var(--subtext);
-      font-weight: 500;
-    }
-
-    .dog-badge {
-      display: inline-block;
-      background: var(--primary);
-      color: #fff;
-      font-size: 9px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      padding: 2px 7px;
-      border-radius: 50px;
-      margin-top: 2px;
-    }
-
-    .hint-label {
-      font-size: 9px;
-      color: var(--primary);
-      opacity: 0.65;
-      margin-top: 1px;
-    }
-
-    /* ── DETAIL POPUP (shared) ── */
-    .detail-popup {
-      position: fixed;
-      z-index: 500;
-      background: var(--panel);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid var(--card-border);
-      border-radius: 18px;
-      padding: 14px 16px 12px;
-      box-shadow: 0 12px 40px var(--shadow);
-      width: 252px;
-      opacity: 0;
-      pointer-events: none;
-      transform: translateY(-5px) scale(0.97);
-      transition: opacity 0.2s ease, transform 0.2s ease;
-    }
-
-    .detail-popup.visible {
-      opacity: 1;
-      pointer-events: auto;
-      transform: translateY(0) scale(1);
-    }
-
-    .detail-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 11px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid var(--card-border);
-    }
-
-    .detail-photo {
-      width: 56px; height: 56px;
-      border-radius: 12px;
-      object-fit: cover;
-      border: 2px solid var(--primary);
-      background: var(--card);
-      flex-shrink: 0;
-    }
-
-    .detail-title {
-      font-size: 15px;
-      font-weight: 800;
-      color: var(--text);
-      line-height: 1.2;
-    }
-
-    .detail-sub {
-      font-size: 10px;
-      color: var(--subtext);
-      margin-top: 2px;
-    }
-
-    .detail-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 5px 0;
-      border-top: 1px solid var(--card-border);
-    }
-
-    .detail-key {
-      font-size: 10px;
-      color: var(--subtext);
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-
-    .detail-val {
-      font-size: 12px;
-      color: var(--text);
-      font-weight: 600;
-    }
-
-    .detail-val.id-code {
-      color: var(--primary);
-      font-family: 'Courier New', monospace;
-      font-size: 11px;
-      letter-spacing: 0.04em;
-    }
-
-    /* ── TOGGLE SWITCH ── */
-    .toggle-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .toggle-label {
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      color: var(--subtext);
-    }
-
-    .toggle-switch {
-      position: relative;
-      width: 64px;
-      height: 32px;
-      cursor: pointer;
-    }
-
-    .toggle-switch input {
-      opacity: 0;
-      width: 0; height: 0;
-      position: absolute;
-    }
-
-    .toggle-track {
-      position: absolute;
-      inset: 0;
-      background: var(--toggle-track);
-      border-radius: 50px;
-      transition: background 0.3s ease;
-    }
-
-    .toggle-switch input:checked + .toggle-track {
-      background: var(--danger);
-      animation: pulse-track 2s infinite;
-    }
-
-    .toggle-thumb {
-      position: absolute;
-      top: 3px; left: 3px;
-      width: 26px; height: 26px;
-      background: #fff;
-      border-radius: 50%;
-      transition: transform 0.3s cubic-bezier(.4,0,.2,1);
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 13px;
-    }
-
-    .toggle-switch input:checked + .toggle-track + .toggle-thumb {
-      transform: translateX(32px);
-    }
-
-    @keyframes pulse-track {
-      0%,100% { box-shadow: 0 0 0 0 rgba(232,101,26,0.4); }
-      50%      { box-shadow: 0 0 0 5px rgba(232,101,26,0); }
-    }
-
-    /* ── BOTTOM PANEL ── */
-    .bottom-panel {
-      position: fixed;
-      bottom: 0; left: 0; right: 0;
-      z-index: 100;
-      background: var(--panel);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      border-top: 1px solid var(--card-border);
-      border-radius: 22px 22px 0 0;
-      padding: 10px 16px 30px;
-      box-shadow: 0 -4px 20px var(--shadow);
-    }
-
-    .handle {
-      width: 38px; height: 4px;
-      background: var(--card-border);
-      border-radius: 2px;
-      margin: 0 auto 12px;
-    }
-
-    /* Stats */
-    .stats-row {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .stat {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 2px;
-      background: var(--card);
-      border: 1px solid var(--card-border);
-      border-radius: 14px;
-      padding: 10px 6px;
-    }
-
-    .stat-val {
-      font-size: 19px;
-      font-weight: 800;
-      color: var(--primary);
-      line-height: 1;
-    }
-
-    .stat-lbl {
-      font-size: 9px;
-      color: var(--subtext);
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      font-weight: 600;
-    }
-
-    /* Walker card */
-    .walker-card {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      background: var(--card);
-      border: 1px solid var(--card-border);
-      border-radius: 16px;
-      padding: 10px 12px;
-      margin-bottom: 10px;
-      cursor: pointer;
-      transition: background 0.2s ease;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .walker-card:hover { background: var(--card-border); }
-
-    .walker-photo {
-      width: 48px; height: 48px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 2.5px solid var(--primary);
-      flex-shrink: 0;
-      background: var(--card-border);
-    }
-
-    .walker-info { flex: 1; min-width: 0; }
-
-    .walker-name {
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--text);
-      line-height: 1.2;
-    }
-
-    .walker-role {
-      font-size: 10px;
-      color: var(--subtext);
-    }
-
-    .walker-stars {
-      font-size: 11px;
-      color: var(--gold);
-      letter-spacing: 1px;
-    }
-
-    .call-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 44px; height: 44px;
-      border-radius: 50%;
-      background: var(--success);
-      border: none;
-      cursor: pointer;
-      text-decoration: none;
-      font-size: 20px;
-      box-shadow: 0 3px 10px rgba(46,148,96,0.4);
-      flex-shrink: 0;
-      transition: transform 0.15s ease;
-    }
-
-    .call-btn:active { transform: scale(0.92); }
-
-    /* Status bar */
-    .status-bar {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 7px;
-      padding: 9px 14px;
-      background: var(--card);
-      border: 1px solid var(--card-border);
-      border-radius: 50px;
-    }
-
-    .status-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: var(--card-border);
-      flex-shrink: 0;
-      transition: background 0.3s;
-    }
-
-    .status-dot.active {
-      background: var(--success);
-      animation: blink 1.2s infinite;
-    }
-
-    @keyframes blink {
-      0%,100% { opacity: 1; }
-      50%      { opacity: 0.3; }
-    }
-
-    .status-text {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--subtext);
-    }
-
-    /* Recenter button */
-    .recenter-btn {
-      position: fixed;
-      bottom: 190px;
-      right: 16px;
-      z-index: 150;
-      width: 44px; height: 44px;
-      border-radius: 50%;
-      background: var(--panel);
-      border: 1px solid var(--card-border);
-      box-shadow: 0 2px 12px var(--shadow);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 20px;
-      cursor: pointer;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-    }
-
-    /* GPS dot marker */
-    .gps-dot {
-      width: 18px; height: 18px;
-      background: #3A7FD4;
-      border-radius: 50%;
-      border: 3px solid #fff;
-      box-shadow: 0 0 0 4px rgba(58,127,212,0.35);
-    }
+    /* Walk Summary Modal */
+    .summary-overlay { position:fixed; inset:0; z-index:900;
+      background:rgba(10,26,58,.55); backdrop-filter:blur(6px);
+      -webkit-backdrop-filter:blur(6px); display:flex; align-items:flex-end;
+      justify-content:center; opacity:0; pointer-events:none; transition:opacity .3s; }
+    .summary-overlay.visible { opacity:1; pointer-events:auto; }
+    .summary-card { background:var(--panel); border-radius:28px 28px 0 0;
+      padding:20px 20px 36px; width:100%; max-width:480px; max-height:88vh;
+      overflow-y:auto; transform:translateY(40px);
+      transition:transform .35s cubic-bezier(.2,0,.2,1); }
+    .summary-overlay.visible .summary-card { transform:translateY(0); }
+    .summary-handle { width:38px; height:4px; background:var(--card-border);
+      border-radius:2px; margin:0 auto 18px; }
+    .summary-title { text-align:center; font-size:20px; font-weight:800;
+      color:var(--text); margin-bottom:4px; }
+    .summary-subtitle { text-align:center; font-size:12px; color:var(--subtext);
+      margin-bottom:20px; }
+    .summary-hero { display:flex; justify-content:center; gap:12px; margin-bottom:16px; }
+    .summary-hero-item { display:flex; flex-direction:column; align-items:center; gap:5px;
+      background:var(--card); border:1px solid var(--card-border); border-radius:16px;
+      padding:14px 10px; flex:1; }
+    .summary-hero-val { font-size:22px; font-weight:800; color:var(--primary); line-height:1; }
+    .summary-hero-lbl { font-size:10px; color:var(--subtext); text-transform:uppercase;
+      letter-spacing:.07em; font-weight:600; }
+    .summary-section { background:var(--card); border:1px solid var(--card-border);
+      border-radius:16px; overflow:hidden; margin-bottom:14px; }
+    .summary-row { display:flex; justify-content:space-between; align-items:center;
+      padding:11px 14px; border-bottom:1px solid var(--card-border); }
+    .summary-row:last-child { border-bottom:none; }
+    .summary-key { font-size:10px; color:var(--subtext); font-weight:700;
+      text-transform:uppercase; letter-spacing:.06em; }
+    .summary-val { font-size:13px; color:var(--text); font-weight:600; text-align:right; }
+    .notes-label { display:block; font-size:10px; color:var(--subtext); font-weight:700;
+      text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px; }
+    .notes-textarea { width:100%; background:var(--card); border:1px solid var(--card-border);
+      border-radius:14px; padding:12px 14px; font-size:14px; color:var(--text);
+      font-family:inherit; resize:none; min-height:90px; outline:none;
+      margin-bottom:18px; transition:border-color .2s; }
+    .notes-textarea:focus { border-color:var(--primary); }
+    .notes-textarea::placeholder { color:var(--subtext); opacity:.65; }
+    .summary-close-btn { width:100%; padding:15px; background:var(--primary); color:#fff;
+      border:none; border-radius:16px; font-size:16px; font-weight:700; cursor:pointer;
+      transition:background .2s,transform .15s; }
+    .summary-close-btn:active { transform:scale(.98); background:var(--primary-deep); }
   </style>
 </head>
 <body>
 
   <div id="map"></div>
 
-  <!-- TOP BAR -->
   <div class="topbar">
     <div class="dog-profile" id="dogProfile">
       <img class="dog-photo" id="toroPic"
@@ -477,342 +180,268 @@
            onerror="this.src='https://images.dog.ceo/breeds/schnauzer-miniature/n02097047_2048.jpg';" />
       <div class="dog-meta">
         <div class="dog-name">Toro</div>
-        <div class="dog-breed">Black Min. Schnauzer · Medium</div>
+        <div class="dog-breed">Black Min. Schnauzer &middot; Medium</div>
         <div class="dog-badge">On Walk</div>
         <div class="hint-label">tap for details</div>
       </div>
     </div>
-
     <div class="toggle-wrap">
       <div class="toggle-label" id="toggleLabel">Start Walk</div>
       <label class="toggle-switch">
         <input type="checkbox" id="walkToggle" onchange="toggleWalk(this)" />
         <div class="toggle-track"></div>
-        <div class="toggle-thumb" id="toggleThumb">🐾</div>
+        <div class="toggle-thumb" id="toggleThumb">&#128062;</div>
       </label>
     </div>
   </div>
 
-  <!-- DOG DETAIL POPUP -->
   <div class="detail-popup" id="dogPopup">
     <div class="detail-header">
       <img class="detail-photo" id="toroPopupPic"
-           src="https://images.dog.ceo/breeds/schnauzer-miniature/n02097047_4065.jpg"
-           alt="Toro" />
+           src="https://images.dog.ceo/breeds/schnauzer-miniature/n02097047_4065.jpg" alt="Toro" />
       <div>
         <div class="detail-title">Toro</div>
-        <div class="detail-sub">🐾 Pet Profile</div>
+        <div class="detail-sub">&#128062; Pet Profile</div>
       </div>
     </div>
-    <div class="detail-row">
-      <span class="detail-key">Breed</span>
-      <span class="detail-val">Min. Schnauzer</span>
-    </div>
-    <div class="detail-row">
-      <span class="detail-key">Color</span>
-      <span class="detail-val">Black</span>
-    </div>
-    <div class="detail-row">
-      <span class="detail-key">Age</span>
-      <span class="detail-val">3 years</span>
-    </div>
-    <div class="detail-row">
-      <span class="detail-key">Size</span>
-      <span class="detail-val">Medium · 18 lbs</span>
-    </div>
-    <div class="detail-row">
-      <span class="detail-key">Pet ID</span>
-      <span class="detail-val id-code">WG-DOG-0042</span>
-    </div>
+    <div class="detail-row"><span class="detail-key">Breed</span><span class="detail-val">Min. Schnauzer</span></div>
+    <div class="detail-row"><span class="detail-key">Color</span><span class="detail-val">Black</span></div>
+    <div class="detail-row"><span class="detail-key">Age</span><span class="detail-val">3 years</span></div>
+    <div class="detail-row"><span class="detail-key">Size</span><span class="detail-val">Medium &middot; 18 lbs</span></div>
+    <div class="detail-row"><span class="detail-key">Pet ID</span><span class="detail-val id-code">WG-DOG-0042</span></div>
   </div>
 
-  <!-- WALKER DETAIL POPUP -->
   <div class="detail-popup" id="walkerPopup">
     <div class="detail-header">
-      <img class="detail-photo"
-           src="https://randomuser.me/api/portraits/men/33.jpg"
-           alt="Diego" />
+      <img class="detail-photo" src="https://randomuser.me/api/portraits/men/33.jpg" alt="Diego" />
       <div>
         <div class="detail-title">Diego M.</div>
-        <div class="detail-sub">✅ Verified Walker</div>
+        <div class="detail-sub">&#10003; Verified Walker</div>
       </div>
     </div>
-    <div class="detail-row">
-      <span class="detail-key">Age</span>
-      <span class="detail-val">18 years</span>
-    </div>
-    <div class="detail-row">
-      <span class="detail-key">Phone</span>
-      <span class="detail-val">+1 (915) 555-0123</span>
-    </div>
-    <div class="detail-row">
-      <span class="detail-key">Rating</span>
-      <span class="detail-val">★★★★★ 4.9</span>
-    </div>
-    <div class="detail-row">
-      <span class="detail-key">Walker ID</span>
-      <span class="detail-val id-code">WG-WAL-0017</span>
-    </div>
-    <div class="detail-row">
-      <span class="detail-key">Walks done</span>
-      <span class="detail-val">124</span>
-    </div>
+    <div class="detail-row"><span class="detail-key">Age</span><span class="detail-val">18 years</span></div>
+    <div class="detail-row"><span class="detail-key">Phone</span><span class="detail-val">+1 (915) 555-0123</span></div>
+    <div class="detail-row"><span class="detail-key">Rating</span><span class="detail-val">&#9733;&#9733;&#9733;&#9733;&#9733; 4.9</span></div>
+    <div class="detail-row"><span class="detail-key">Walker ID</span><span class="detail-val id-code">WG-WAL-0017</span></div>
+    <div class="detail-row"><span class="detail-key">Walks done</span><span class="detail-val">124</span></div>
   </div>
 
-  <!-- BOTTOM PANEL -->
   <div class="bottom-panel">
     <div class="handle"></div>
-
     <div class="stats-row">
-      <div class="stat">
-        <div class="stat-val" id="statTime">0:00</div>
-        <div class="stat-lbl">Time</div>
-      </div>
-      <div class="stat">
-        <div class="stat-val" id="statDist">0.0 mi</div>
-        <div class="stat-lbl">Distance</div>
-      </div>
-      <div class="stat">
-        <div class="stat-val" id="statSpeed">— mph</div>
-        <div class="stat-lbl">Speed</div>
-      </div>
+      <div class="stat"><div class="stat-val" id="statTime">0:00</div><div class="stat-lbl">Time</div></div>
+      <div class="stat"><div class="stat-val" id="statDist">0.0 mi</div><div class="stat-lbl">Distance</div></div>
+      <div class="stat"><div class="stat-val" id="statSpeed">-- mph</div><div class="stat-lbl">Speed</div></div>
     </div>
-
     <div class="walker-card" id="walkerCard">
-      <img class="walker-photo"
-           src="https://randomuser.me/api/portraits/men/33.jpg"
-           alt="Diego"
+      <img class="walker-photo" src="https://randomuser.me/api/portraits/men/33.jpg" alt="Diego"
            onerror="this.style.background='#3A7FD4';" />
       <div class="walker-info">
         <div class="walker-name">Diego M.</div>
-        <div class="walker-role">Verified Walker · WG-WAL-0017</div>
-        <div class="walker-stars">★★★★★ <span style="color:var(--subtext);font-size:10px;">4.9</span></div>
+        <div class="walker-role">Verified Walker &middot; WG-WAL-0017</div>
+        <div class="walker-stars">&#9733;&#9733;&#9733;&#9733;&#9733; <span style="color:var(--subtext);font-size:10px;">4.9</span></div>
         <div class="hint-label">tap for details</div>
       </div>
-      <a class="call-btn" href="tel:+19155550123" title="Call Diego"
-         onclick="event.stopPropagation()">📞</a>
+      <a class="call-btn" href="tel:+19155550123" title="Call Diego" onclick="event.stopPropagation()">&#128222;</a>
     </div>
-
     <div class="status-bar">
       <div class="status-dot" id="statusDot"></div>
       <div class="status-text" id="statusText">Toggle to start walk</div>
     </div>
   </div>
 
-  <!-- Recenter -->
-  <button class="recenter-btn" onclick="recenterMap()" title="Recenter map">📍</button>
+  <button class="recenter-btn" onclick="recenterMap()" title="Recenter map">&#128205;</button>
+
+  <div class="summary-overlay" id="summaryOverlay">
+    <div class="summary-card">
+      <div class="summary-handle"></div>
+      <div class="summary-title">&#128062; Walk Complete!</div>
+      <div class="summary-subtitle">Great job, Diego! Here is the full recap.</div>
+      <div class="summary-hero">
+        <div class="summary-hero-item">
+          <div class="summary-hero-val" id="sumDist">--</div>
+          <div class="summary-hero-lbl">Miles</div>
+        </div>
+        <div class="summary-hero-item">
+          <div class="summary-hero-val" id="sumDuration">--</div>
+          <div class="summary-hero-lbl">Duration</div>
+        </div>
+      </div>
+      <div class="summary-section">
+        <div class="summary-row"><span class="summary-key">Start Time</span><span class="summary-val" id="sumStart">--</span></div>
+        <div class="summary-row"><span class="summary-key">End Time</span><span class="summary-val" id="sumEnd">--</span></div>
+        <div class="summary-row"><span class="summary-key">Total Time</span><span class="summary-val" id="sumTotal">--</span></div>
+        <div class="summary-row"><span class="summary-key">Pet</span><span class="summary-val">&#128062; Toro &middot; WG-DOG-0042</span></div>
+        <div class="summary-row"><span class="summary-key">Walker</span><span class="summary-val">&#10003; Diego M. &middot; WG-WAL-0017</span></div>
+      </div>
+      <label class="notes-label" for="walkerNotes">Walker Notes</label>
+      <textarea class="notes-textarea" id="walkerNotes"
+        placeholder="Observations about Toro: behavior, energy level, health..."></textarea>
+      <button class="summary-close-btn" onclick="closeSummary()">Done &#10003;</button>
+    </div>
+  </div>
 
   <script>
-    // ── MAP SETUP ──
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const tileUrl = prefersDark
+    var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var tileUrl = prefersDark
       ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
       : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-
-    const defaultCoords = [31.7619, -106.4850]; // El Paso fallback
-
-    const map = L.map('map', { zoomControl: false, attributionControl: false })
-                 .setView(defaultCoords, 15);
-
+    var defaultCoords = [31.7619, -106.4850];
+    var map = L.map('map', { zoomControl: false, attributionControl: false }).setView(defaultCoords, 15);
     L.tileLayer(tileUrl, { maxZoom: 19 }).addTo(map);
+    setTimeout(function() { map.invalidateSize(); }, 300);
+    var markerIcon = L.divIcon({ className: '', html: '<div class="gps-dot"></div>', iconSize: [18,18], iconAnchor: [9,9] });
+    var marker   = L.marker(defaultCoords, { icon: markerIcon }).addTo(map);
+    var polyline = L.polyline([], { color: '#3A7FD4', weight: 4, opacity: 0.9 }).addTo(map);
+    var route    = [defaultCoords];
+    var lastPos  = defaultCoords;
+    var seconds = 0, distMiles = 0;
+    var timerInt = null, simInt = null, watchId = null;
+    var walkStartTime = null;
 
-    // Ensure map renders after layout settles
-    setTimeout(() => map.invalidateSize(), 300);
-
-    const markerIcon = L.divIcon({
-      className: '',
-      html: '<div class="gps-dot"></div>',
-      iconSize: [18, 18],
-      iconAnchor: [9, 9]
-    });
-
-    let marker   = L.marker(defaultCoords, { icon: markerIcon }).addTo(map);
-    let polyline = L.polyline([], { color: '#3A7FD4', weight: 4, opacity: 0.9 }).addTo(map);
-    let route    = [defaultCoords];
-    let lastPos  = defaultCoords;
-
-    let seconds = 0, distMiles = 0;
-    let timerInt = null, simInt = null, watchId = null;
-
-    // ── HAVERSINE (miles) ──
     function haversine(lat1, lon1, lat2, lon2) {
-      const R = 3958.8;
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLon = (lon2 - lon1) * Math.PI / 180;
-      const a = Math.sin(dLat/2)**2 +
-                Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) *
-                Math.sin(dLon/2)**2;
+      var R = 3958.8, dLat = (lat2-lat1)*Math.PI/180, dLon = (lon2-lon1)*Math.PI/180;
+      var a = Math.sin(dLat/2)*Math.sin(dLat/2) +
+              Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
       return R * 2 * Math.asin(Math.sqrt(a));
     }
 
-    // ── REAL GPS POSITION UPDATE ──
     function onGpsUpdate(pos) {
-      const np = [pos.coords.latitude, pos.coords.longitude];
+      var np = [pos.coords.latitude, pos.coords.longitude];
       distMiles += haversine(lastPos[0], lastPos[1], np[0], np[1]);
-      lastPos = np;
-      route.push(np);
-      marker.setLatLng(np);
-      polyline.setLatLngs(route);
+      lastPos = np; route.push(np);
+      marker.setLatLng(np); polyline.setLatLngs(route);
       map.panTo(np, { animate: true, duration: 0.8 });
       document.getElementById('statDist').textContent = distMiles.toFixed(2) + ' mi';
-      if (pos.coords.speed != null) {
+      if (pos.coords.speed != null)
         document.getElementById('statSpeed').textContent = (pos.coords.speed * 2.237).toFixed(1) + ' mph';
-      }
     }
 
-    // ── SIMULATION FALLBACK ──
     function startSimulation() {
-      document.getElementById('statusText').textContent = 'Walk in progress · GPS simulated';
-      simInt = setInterval(() => {
-        const np = [
-          lastPos[0] + (Math.random() - 0.48) * 0.0003,
-          lastPos[1] + (Math.random() - 0.48) * 0.0003
-        ];
+      document.getElementById('statusText').textContent = 'Walk in progress - GPS simulated';
+      simInt = setInterval(function() {
+        var np = [lastPos[0]+(Math.random()-.48)*.0003, lastPos[1]+(Math.random()-.48)*.0003];
         distMiles += haversine(lastPos[0], lastPos[1], np[0], np[1]);
-        lastPos = np;
-        route.push(np);
-        marker.setLatLng(np);
-        polyline.setLatLngs(route);
+        lastPos = np; route.push(np);
+        marker.setLatLng(np); polyline.setLatLngs(route);
         map.panTo(np, { animate: true, duration: 0.8 });
         document.getElementById('statDist').textContent  = distMiles.toFixed(2) + ' mi';
-        document.getElementById('statSpeed').textContent = (1.5 + Math.random()).toFixed(1) + ' mph';
+        document.getElementById('statSpeed').textContent = (1.5+Math.random()).toFixed(1) + ' mph';
       }, 2000);
     }
 
-    // ── TOGGLE WALK ──
     function toggleWalk(checkbox) {
-      const label    = document.getElementById('toggleLabel');
-      const thumb    = document.getElementById('toggleThumb');
-      const dot      = document.getElementById('statusDot');
-      const statText = document.getElementById('statusText');
-
+      var label    = document.getElementById('toggleLabel');
+      var thumb    = document.getElementById('toggleThumb');
+      var dot      = document.getElementById('statusDot');
+      var statText = document.getElementById('statusText');
       if (checkbox.checked) {
-        label.textContent = 'End Walk';
-        thumb.textContent = '🔴';
-        dot.classList.add('active');
-        statText.textContent = 'Locating…';
-
-        timerInt = setInterval(() => {
+        walkStartTime = new Date(); seconds = 0; distMiles = 0;
+        label.textContent = 'End Walk'; thumb.innerHTML = '&#128308;';
+        dot.classList.add('active'); statText.textContent = 'Locating...';
+        timerInt = setInterval(function() {
           seconds++;
           document.getElementById('statTime').textContent = fmt(seconds);
         }, 1000);
-
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              const start = [pos.coords.latitude, pos.coords.longitude];
-              lastPos = start;
-              route   = [start];
-              marker.setLatLng(start);
-              map.setView(start, 17, { animate: true });
-              statText.textContent = 'Walk in progress · GPS active';
-              watchId = navigator.geolocation.watchPosition(
-                onGpsUpdate,
-                () => {},
-                { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
-              );
+            function(pos) {
+              var start = [pos.coords.latitude, pos.coords.longitude];
+              lastPos = start; route = [start];
+              marker.setLatLng(start); map.setView(start, 17, { animate: true });
+              statText.textContent = 'Walk in progress - GPS active';
+              watchId = navigator.geolocation.watchPosition(onGpsUpdate, function(){},
+                { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 });
             },
-            () => startSimulation(),
+            function() { startSimulation(); },
             { enableHighAccuracy: true, timeout: 8000 }
           );
-        } else {
-          startSimulation();
-        }
-
+        } else { startSimulation(); }
       } else {
-        label.textContent = 'Start Walk';
-        thumb.textContent = '🐾';
+        label.textContent = 'Start Walk'; thumb.innerHTML = '&#128062;';
         dot.classList.remove('active');
-        statText.textContent = `Walk done · ${distMiles.toFixed(2)} mi · ${fmt(seconds)}`;
-        document.getElementById('statSpeed').textContent = '— mph';
-
-        clearInterval(timerInt);
-        clearInterval(simInt);
-        if (watchId != null) {
-          navigator.geolocation.clearWatch(watchId);
-          watchId = null;
-        }
-        if (route.length > 1) {
-          map.fitBounds(L.latLngBounds(route), { padding: [80, 80] });
-        }
+        statText.textContent = 'Walk done - ' + distMiles.toFixed(2) + ' mi - ' + fmt(seconds);
+        document.getElementById('statSpeed').textContent = '-- mph';
+        clearInterval(timerInt); clearInterval(simInt);
+        if (watchId != null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+        if (route.length > 1) map.fitBounds(L.latLngBounds(route), { padding: [80, 80] });
+        setTimeout(showSummary, 600);
       }
+    }
+
+    function fmt(s) { return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); }
+
+    function showSummary() {
+      var endTime = new Date();
+      function fmtTime(d) { return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+      document.getElementById('sumDist').textContent     = distMiles.toFixed(2) + ' mi';
+      document.getElementById('sumDuration').textContent = fmt(seconds);
+      document.getElementById('sumTotal').textContent    = fmt(seconds);
+      document.getElementById('sumStart').textContent    = walkStartTime ? fmtTime(walkStartTime) : '--';
+      document.getElementById('sumEnd').textContent      = fmtTime(endTime);
+      document.getElementById('walkerNotes').value       = '';
+      document.getElementById('summaryOverlay').classList.add('visible');
+    }
+
+    function closeSummary() {
+      document.getElementById('summaryOverlay').classList.remove('visible');
+      seconds = 0; distMiles = 0; walkStartTime = null; route = [lastPos];
+      polyline.setLatLngs([]);
+      document.getElementById('statTime').textContent   = '0:00';
+      document.getElementById('statDist').textContent   = '0.0 mi';
+      document.getElementById('statSpeed').textContent  = '-- mph';
+      document.getElementById('statusText').textContent = 'Toggle to start walk';
     }
 
     function recenterMap() { map.panTo(lastPos, { animate: true }); }
 
-    function fmt(s) {
-      return `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
-    }
-
-    // ── DETAIL POPUPS ──
     function positionAndShow(popup, anchor, preferAbove) {
       popup.classList.add('visible');
-      requestAnimationFrame(() => {
-        const rect   = anchor.getBoundingClientRect();
-        const vpW    = window.innerWidth;
-        const popW   = popup.offsetWidth  || 252;
-        const popH   = popup.offsetHeight || 200;
-
-        let top = preferAbove ? rect.top - popH - 10 : rect.bottom + 8;
+      requestAnimationFrame(function() {
+        var rect = anchor.getBoundingClientRect(), vpW = window.innerWidth;
+        var popW = popup.offsetWidth || 252, popH = popup.offsetHeight || 200;
+        var top = preferAbove ? rect.top - popH - 10 : rect.bottom + 8;
         if (top < 80) top = rect.bottom + 8;
-
-        let left = rect.left;
+        var left = rect.left;
         if (left + popW > vpW - 8) left = vpW - popW - 8;
         if (left < 8) left = 8;
-
-        popup.style.top  = top + 'px';
-        popup.style.left = left + 'px';
+        popup.style.top = top + 'px'; popup.style.left = left + 'px';
       });
     }
 
     function hidePopup(popup) { popup.classList.remove('visible'); }
 
-    const dogProfile  = document.getElementById('dogProfile');
-    const dogPopup    = document.getElementById('dogPopup');
-    const walkerCard  = document.getElementById('walkerCard');
-    const walkerPopup = document.getElementById('walkerPopup');
+    var dogProfile  = document.getElementById('dogProfile');
+    var dogPopup    = document.getElementById('dogPopup');
+    var walkerCard  = document.getElementById('walkerCard');
+    var walkerPopup = document.getElementById('walkerPopup');
 
-    // Dog profile interactions
-    dogProfile.addEventListener('mouseenter', () => positionAndShow(dogPopup, dogProfile, false));
-    dogProfile.addEventListener('mouseleave', (e) => {
-      if (!dogPopup.contains(e.relatedTarget)) hidePopup(dogPopup);
+    dogProfile.addEventListener('mouseenter', function() { positionAndShow(dogPopup, dogProfile, false); });
+    dogProfile.addEventListener('mouseleave', function(e) { if (!dogPopup.contains(e.relatedTarget)) hidePopup(dogPopup); });
+    dogPopup.addEventListener('mouseleave', function() { hidePopup(dogPopup); });
+    dogProfile.addEventListener('click', function() {
+      dogPopup.classList.contains('visible') ? hidePopup(dogPopup) : positionAndShow(dogPopup, dogProfile, false);
     });
-    dogPopup.addEventListener('mouseleave', () => hidePopup(dogPopup));
-    dogProfile.addEventListener('click', () => {
-      dogPopup.classList.contains('visible')
-        ? hidePopup(dogPopup)
-        : positionAndShow(dogPopup, dogProfile, false);
-    });
-
-    // Walker card interactions
-    walkerCard.addEventListener('mouseenter', () => positionAndShow(walkerPopup, walkerCard, true));
-    walkerCard.addEventListener('mouseleave', (e) => {
-      if (!walkerPopup.contains(e.relatedTarget)) hidePopup(walkerPopup);
-    });
-    walkerPopup.addEventListener('mouseleave', () => hidePopup(walkerPopup));
-    walkerCard.addEventListener('click', (e) => {
+    walkerCard.addEventListener('mouseenter', function() { positionAndShow(walkerPopup, walkerCard, true); });
+    walkerCard.addEventListener('mouseleave', function(e) { if (!walkerPopup.contains(e.relatedTarget)) hidePopup(walkerPopup); });
+    walkerPopup.addEventListener('mouseleave', function() { hidePopup(walkerPopup); });
+    walkerCard.addEventListener('click', function(e) {
       if (e.target.closest('.call-btn')) return;
-      walkerPopup.classList.contains('visible')
-        ? hidePopup(walkerPopup)
-        : positionAndShow(walkerPopup, walkerCard, true);
+      walkerPopup.classList.contains('visible') ? hidePopup(walkerPopup) : positionAndShow(walkerPopup, walkerCard, true);
+    });
+    document.addEventListener('click', function(e) {
+      if (!dogProfile.contains(e.target) && !dogPopup.contains(e.target))    hidePopup(dogPopup);
+      if (!walkerCard.contains(e.target) && !walkerPopup.contains(e.target)) hidePopup(walkerPopup);
     });
 
-    // Close on outside tap
-    document.addEventListener('click', (e) => {
-      if (!dogProfile.contains(e.target)  && !dogPopup.contains(e.target))   hidePopup(dogPopup);
-      if (!walkerCard.contains(e.target)  && !walkerPopup.contains(e.target)) hidePopup(walkerPopup);
-    });
-
-    // ── TORO PHOTO — fetch a fresh schnauzer image ──
     fetch('https://dog.ceo/api/breed/schnauzer/miniature/images/random')
-      .then(r => r.json())
-      .then(d => {
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
         if (d.status === 'success') {
           document.getElementById('toroPic').src      = d.message;
           document.getElementById('toroPopupPic').src = d.message;
         }
-      })
-      .catch(() => {});
+      }).catch(function() {});
   </script>
 </body>
 </html>
