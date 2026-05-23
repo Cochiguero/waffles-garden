@@ -379,8 +379,7 @@
         <div class="role-badge">
           <div class="role-badge-emoji" id="badgeEmoji">🐶</div>
           <div class="role-badge-info">
-            <div class="role-badge-label">Entering as</div>
-            <div class="role-badge-name c-waffle" id="badgeName">Waffle</div>
+            <div class="role-badge-label">Entering as</div       <div class="role-badge-name c-waffle" id="badgeName">Waffle</div>
           </div>
         </div>
       </div>
@@ -444,28 +443,34 @@
       var inputCls = isWaffle ? 'fi-waffle' : 'fi-bestie';
       var btnCls   = isWaffle ? 's-waffle'  : 's-bestie';
 
+      // Badge
       document.getElementById('badgeEmoji').textContent = isWaffle ? '🐶' : '🦺';
       var badgeName = document.getElementById('badgeName');
       badgeName.textContent = isWaffle ? 'Waffle' : 'Bestie';
       badgeName.className = 'role-badge-name ' + colorCls;
 
+      // Mode tabs
       var tL = document.getElementById('tabLogin');
       var tR = document.getElementById('tabRegister');
       tL.className = 'mode-tab ' + tabCls + (isLogin ? ' active' : '');
       tR.className = 'mode-tab ' + tabCls + (!isLogin ? ' active' : '');
 
+      // Name field
       document.getElementById('nameField').classList.toggle('show', !isLogin);
 
+      // Input focus colors
       var inputs = document.querySelectorAll('.field-input');
       inputs.forEach(function(inp) {
         inp.classList.remove('fi-waffle', 'fi-bestie');
         inp.classList.add(inputCls);
       });
 
+      // Submit button
       var btn = document.getElementById('submitBtn');
       btn.className = 'btn-submit ' + btnCls;
       btn.textContent = (isLogin ? 'Log In' : 'Sign Up') + ' as ' + (isWaffle ? 'Waffle' : 'Bestie');
 
+      // Password autocomplete hint
       document.getElementById('inputPassword').setAttribute('autocomplete', isLogin ? 'current-password' : 'new-password');
     }
 
